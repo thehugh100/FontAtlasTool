@@ -50,12 +50,22 @@ void FontAtlas::loadAtlasEntries(int size, int maxCodepoint)
     this->size = size;
     FT_UInt index;
     FT_ULong c = FT_Get_First_Char(face, &index);
-    FT_GlyphSlot slot = face->glyph;
 
     //TODO: We can do this in parallel
 
+    std::vector<FT_ULong> validChars;
     while (index)
     {
+        if (c <= maxCodepoint) {
+            validChars.push_back(c);
+        }
+
+        c = FT_Get_Next_Char(face, c, &index);
+    }
+
+    std::cout << "Rendering " << validChars.size() << " glyphs..." << std::endl;
+
+    for(auto &c : validChars) {
         //TODO: handle flag for SDF or normal render, add commandline, add entry in manifest
         if (FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_TARGET_(FT_RENDER_MODE_SDF)))
         {
@@ -63,36 +73,31 @@ void FontAtlas::loadAtlasEntries(int size, int maxCodepoint)
             continue;
         }
 
-        if (c <= maxCodepoint)
-        {
-            int glyphWidth = face->glyph->bitmap.width;
-            int glyphHeight = face->glyph->bitmap.rows;
+        int glyphWidth = face->glyph->bitmap.width;
+        int glyphHeight = face->glyph->bitmap.rows;
 
-            unsigned char *data = new unsigned char[glyphWidth * glyphHeight];
-            memcpy(data, face->glyph->bitmap.buffer, glyphWidth * glyphHeight);
+        unsigned char *data = new unsigned char[glyphWidth * glyphHeight];
+        memcpy(data, face->glyph->bitmap.buffer, glyphWidth * glyphHeight);
 
-            atlasEntries.push_back({(int)c,
-                                    0,
-                                    0,
-                                    0,
-                                    0,
-                                    glyphWidth,
-                                    glyphHeight,
-                                    size,
-                                    data,
-                                    face->glyph->bitmap_left,
-                                    face->glyph->bitmap_top,
-                                    (int)(face->glyph->advance.x >> 6)});
-            totalGlyphPixels += glyphWidth * glyphHeight;
-            averageGlpyhWidth += glyphWidth;
-            averageGlpyhHeight += glyphHeight;
-        }
-
-        c = FT_Get_Next_Char(face, c, &index);
+        atlasEntries.push_back({(int)c,
+                                0,
+                                0,
+                                0,
+                                0,
+                                glyphWidth,
+                                glyphHeight,
+                                size,
+                                data,
+                                face->glyph->bitmap_left,
+                                face->glyph->bitmap_top,
+                                (int)(face->glyph->advance.x >> 6)});
+        totalGlyphPixels += glyphWidth * glyphHeight;
+        averageGlpyhWidth += glyphWidth;
+        averageGlpyhHeight += glyphHeight;
+        
     }
     averageGlpyhWidth /= (float)atlasEntries.size();
     averageGlpyhHeight /= (float)atlasEntries.size();
-    // std::cout << averageGlpyhWidth << " : " << averageGlpyhHeight << std::endl;
 }
 
 void FontAtlas::estimateBounds()
@@ -317,12 +322,12 @@ void FontAtlas::writePNG()
               << " written " << pngOutName << std::endl;
 }
 
-FontAtlas::FontAtlas(std::filesystem::path path, int size) : path(path), size(size)
+FontAtlas::FontAtlas(std::filesystem::path path, int size, int maxCodePoint) : path(path), size(size)
 {
     outname = "";
     auto start = std::chrono::high_resolution_clock::now();
     initFreetype();
-    loadAtlasEntries(size, 128);
+    loadAtlasEntries(size, maxCodePoint);
 
     std::cout << "FontAtlas::loadAtlasEntries() -> Populated " << atlasEntries.size() << " entries." << std::endl;
     estimateBounds();

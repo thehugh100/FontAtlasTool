@@ -59,8 +59,8 @@ class FontAtlas {
 
     void writePNG();
 
-    FontAtlas(std::filesystem::path path, int size);
-    
+    FontAtlas(std::filesystem::path path, int size, int maxCodePoint);
+
     int atlasWidth;
     int atlasHeight;
     int size;

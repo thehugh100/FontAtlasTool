@@ -7,7 +7,8 @@
 //parameter name -> (expected parameters, default value)
 const std::map<std::string, std::pair<int, std::string>> params = {
     {"-in", {1, "input.ttf"}},
-    {"-size", {1, "32"}}
+    {"-size", {1, "32"}},
+    {"-maxCodepoint", {1, "128"}}
 };
 
 std::string getParameter(int argc, char **argv, std::string search) {
@@ -28,6 +29,7 @@ std::string getParameter(int argc, char **argv, std::string search) {
                 }
             }
         }
+        std::cout << "Using default for: " << search << " -> " << paramData.second << std::endl;
         return paramData.second;
     } else {
         std::cout << "Unknown parameter " << search << std::endl;
@@ -41,7 +43,11 @@ int main(int argc, char **argv)
     if(argc > 1) {
         std::filesystem::path path(getParameter(argc, argv, "-in"));
         if(std::filesystem::exists(path)) {
-            FontAtlas* fontAtlas = new FontAtlas(path, std::stoi(getParameter(argc, argv, "-size")));
+            FontAtlas* fontAtlas = new FontAtlas(
+                path, 
+                std::stoi(getParameter(argc, argv, "-size")),
+                std::stoi(getParameter(argc, argv, "-maxCodepoint"))
+            );
         } else {
             std::cout << path << " does not exist." << std::endl;
         }

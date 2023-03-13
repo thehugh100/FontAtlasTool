@@ -10,6 +10,7 @@ find_package(ZLIB REQUIRED)
 add_executable(
     fontAtlasTool
     main.cpp
+    FontAtlas.cpp
 )
 
 target_link_directories(fontAtlasTool PUBLIC deps/freetype/build)

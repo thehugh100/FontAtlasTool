@@ -29,8 +29,7 @@ void FontAtlas::initFreetype()
         std::cout << "FontAtlas::initFreetype Failed to load font" << std::endl;
         return;
     }
-    //TODO: should the family name be used here? should spaces be replaced with underscores, should we just use the filename?
-    outname = std::string(face->family_name) + "_" + std::to_string(size);
+    outname = path.filename().stem().string() + "_" + std::to_string(size);
     if(retina) {
         outname += "_retina";
     }

@@ -16,6 +16,7 @@
 
 struct FontAtlasEntry {
     int code;
+    int index;
     int sx;
     int sy;
     int ex;
@@ -59,8 +60,11 @@ class FontAtlas {
 
     void writePNG();
 
-    FontAtlas(std::filesystem::path path, int size, int maxCodePoint);
-
+    FontAtlas(std::filesystem::path path, int size, int maxCodePoint, bool retina, std::string type);
+    
+    std::string typeString;
+    int type;
+    bool retina;
     int atlasWidth;
     int atlasHeight;
     int size;

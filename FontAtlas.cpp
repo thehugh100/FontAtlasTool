@@ -29,8 +29,14 @@ void FontAtlas::initFreetype()
         std::cout << "FontAtlas::initFreetype Failed to load font" << std::endl;
         return;
     }
-
+    //TODO: should the family name be used here? should spaces be replaced with underscores, should we just use the filename?
     outname = std::string(face->family_name) + "_" + std::to_string(size);
+    if(retina) {
+        outname += "_retina";
+    }
+    if(type == 1) {
+        outname += "_bitmap";
+    }
 
     totalGlyphPixels = 0;
     averageGlpyhHeight = 0;
@@ -46,20 +52,22 @@ void FontAtlas::freeFreetype()
 
 void FontAtlas::loadAtlasEntries(int size, int maxCodepoint)
 {
-    FT_Set_Pixel_Sizes(face, 0, size);
     this->size = size;
+    size *= (retina ? 2 : 1);
+
+    FT_Set_Char_Size(face, size * 64, size * 64, 0, 0);
     FT_UInt index;
     FT_ULong c = FT_Get_First_Char(face, &index);
 
     //TODO: We can do this in parallel
 
-    std::vector<FT_ULong> validChars;
+    std::vector<std::pair<FT_ULong, FT_ULong>> validChars;
     while (index)
     {
         if (c <= maxCodepoint) {
-            validChars.push_back(c);
+            validChars.push_back(std::make_pair(c, index));
         }
-
+        
         c = FT_Get_Next_Char(face, c, &index);
     }
 
@@ -67,7 +75,9 @@ void FontAtlas::loadAtlasEntries(int size, int maxCodepoint)
 
     for(auto &c : validChars) {
         //TODO: handle flag for SDF or normal render, add commandline, add entry in manifest
-        if (FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_TARGET_(FT_RENDER_MODE_SDF)))
+        
+        int32_t renderTarget = type == 0 ? FT_LOAD_TARGET_(FT_RENDER_MODE_SDF) : 0;
+        if (FT_Load_Char(face, c.first, FT_LOAD_RENDER | renderTarget))
         {
             std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
             continue;
@@ -79,18 +89,22 @@ void FontAtlas::loadAtlasEntries(int size, int maxCodepoint)
         unsigned char *data = new unsigned char[glyphWidth * glyphHeight];
         memcpy(data, face->glyph->bitmap.buffer, glyphWidth * glyphHeight);
 
-        atlasEntries.push_back({(int)c,
-                                0,
-                                0,
-                                0,
-                                0,
-                                glyphWidth,
-                                glyphHeight,
-                                size,
-                                data,
-                                face->glyph->bitmap_left,
-                                face->glyph->bitmap_top,
-                                (int)(face->glyph->advance.x >> 6)});
+        atlasEntries.push_back({
+            (int)c.first,
+            (int)c.second,
+            0,
+            0,
+            0,
+            0,
+            glyphWidth,
+            glyphHeight,
+            size,
+            data,
+            face->glyph->bitmap_left,
+            face->glyph->bitmap_top,
+            (int)((float)face->glyph->advance.x)
+        });
+
         totalGlyphPixels += glyphWidth * glyphHeight;
         averageGlpyhWidth += glyphWidth;
         averageGlpyhHeight += glyphHeight;
@@ -156,17 +170,17 @@ void FontAtlas::calculateLayout()
         int glyphWidth = i.w;
         int glyphHeight = i.h;
 
-        if (glyphHeight > atlasRowTallestChar)
-        {
-            atlasRowTallestChar = glyphHeight;
-            atlasHeight = atlasCursorY + atlasRowTallestChar;
-        }
-
         if ((atlasCursorX + glyphWidth) > atlasWidth)
         {
             atlasCursorX = 0;
             atlasCursorY += atlasRowTallestChar;
             atlasRowTallestChar = 0;
+        }
+
+        if (glyphHeight > atlasRowTallestChar)
+        {
+            atlasRowTallestChar = glyphHeight;
+            atlasHeight = atlasCursorY + atlasRowTallestChar;
         }
 
         i.sx = atlasCursorX;
@@ -279,8 +293,12 @@ void FontAtlas::writeManifest()
     manifest["width"] = atlasWidth;
     manifest["height"] = atlasHeight;
     manifest["atlas"] = outname + ".png";
+    manifest["font"] = path.filename();
     manifest["face"] = face->family_name;
     manifest["size"] = size;
+    manifest["type"] = typeString;
+    manifest["retina"] = retina;
+    manifest["retina_scale"] = (int)retina * 2;
 
     for (auto &i : atlasEntries)
     {
@@ -290,6 +308,7 @@ void FontAtlas::writeManifest()
         ch["ex"] = i.ex;
         ch["ey"] = i.ey;
         ch["c"] = i.code;
+        ch["i"] = i.index;
         ch["bx"] = i.bearingX;
         ch["by"] = i.bearingY;
         ch["a"] = i.advance;
@@ -322,8 +341,20 @@ void FontAtlas::writePNG()
               << " written " << pngOutName << std::endl;
 }
 
-FontAtlas::FontAtlas(std::filesystem::path path, int size, int maxCodePoint) : path(path), size(size)
+FontAtlas::FontAtlas(std::filesystem::path path, int size, int maxCodePoint, bool retina, std::string type) : path(path), size(size), retina(retina), typeString(type)
 {
+    //TODO: move this outside of class and make enum
+    if(type == "sdf") {
+        this->type = 0;
+    } else if (type == "bitmap") {
+        this->type = 1;
+    } else {
+        this->type = 0;
+        std::cout << "Unknown type '" << type << "' defaulting to SDF" << std::endl;
+        typeString = "sdf";
+    }
+        std::cout << "generating: " << type << std::endl;
+
     outname = "";
     auto start = std::chrono::high_resolution_clock::now();
     initFreetype();

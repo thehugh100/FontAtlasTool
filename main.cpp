@@ -4,11 +4,14 @@
 
 #include "FontAtlas.h"
 
-//parameter name -> (expected parameters, default value)
+// parameter name -> (expected parameters, default value)
+// if expected parameters = 0 then it will act as a flag
 const std::map<std::string, std::pair<int, std::string>> params = {
     {"-in", {1, "input.ttf"}},
     {"-size", {1, "32"}},
-    {"-maxCodepoint", {1, "128"}}
+    {"-maxCodepoint", {1, "128"}},
+    {"-retina", {0, "0"}},
+    {"-type", {1, "sdf"}},
 };
 
 std::string getParameter(int argc, char **argv, std::string search) {
@@ -17,6 +20,9 @@ std::string getParameter(int argc, char **argv, std::string search) {
         auto paramData = param->second;
         for(int i = 1; i < argc; ++i) {
             if(argv[i] == search) {
+                if(!paramData.first) { //used for flags
+                    return "1";
+                }
                 if((paramData.first + i + 1) > argc) {
                     std::cout << "To few arguments for " << search << ", expected " << paramData.first << std::endl;
                     return paramData.second;
@@ -46,7 +52,9 @@ int main(int argc, char **argv)
             FontAtlas* fontAtlas = new FontAtlas(
                 path, 
                 std::stoi(getParameter(argc, argv, "-size")),
-                std::stoi(getParameter(argc, argv, "-maxCodepoint"))
+                std::stoi(getParameter(argc, argv, "-maxCodepoint")),
+                std::stoi(getParameter(argc, argv, "-retina")),
+                getParameter(argc, argv, "-type")
             );
         } else {
             std::cout << path << " does not exist." << std::endl;

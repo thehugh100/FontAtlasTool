@@ -2,6 +2,8 @@
 A simple font atlas tool to create bitmap and SDF font atlases.
 FontAtlasTool outputs a JSON manifest file which is easy to parse and contains all the information required to render the font.
 
+![alt text](https://github.com/thehugh100/FontAtlasTool/blob/master/media/project.jpg?raw=true)
+
 # Command line usage
 ```bash
 # [<optional arguments>]
